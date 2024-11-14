@@ -1,0 +1,108 @@
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from sklearn.model_selection import train_test_split
+
+
+DATASET_PATH = r'C:\Users\atulb\Downloads\images\dataset-master\dataset-master'
+
+
+IMAGE_SIZE = (128, 128)  # Resize all images to 128x128
+BATCH_SIZE = 32  # Number of images processed together
+SEED = 42  # Ensure reproducibility
+
+
+datagen = ImageDataGenerator(
+    rescale=1.0/255.0,  # Normalize pixel values between 0 and 1
+    validation_split=0.2,  # Use 20% of data for validation
+    rotation_range=15,  # Randomly rotate images
+    width_shift_range=0.1,  # Shift width randomly
+    height_shift_range=0.1,  # Shift height randomly
+    horizontal_flip=True  # Random horizontal flip
+)
+
+
+train_data = datagen.flow_from_directory(
+    DATASET_PATH,
+    target_size=IMAGE_SIZE,
+    batch_size=BATCH_SIZE,
+    class_mode='categorical',  # Use 'categorical' for multi-class classification
+    subset='training',
+    seed=SEED
+)
+
+
+
+val_data = datagen.flow_from_directory(
+    DATASET_PATH,
+    target_size=IMAGE_SIZE,
+    batch_size=BATCH_SIZE,
+    class_mode='categorical',
+    subset='validation',
+    seed=SEED
+)
+
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+
+
+model = Sequential([
+    Conv2D(32, (3, 3), activation='relu', input_shape=(128, 128, 3)),  # 1st Convolutional layer
+    MaxPooling2D(pool_size=(2, 2)),  # Max Pooling
+
+    Conv2D(64, (3, 3), activation='relu'),  # 2nd Convolutional layer
+    MaxPooling2D(pool_size=(2, 2)),
+
+    Conv2D(128, (3, 3), activation='relu'),  # 3rd Convolutional layer
+    MaxPooling2D(pool_size=(2, 2)),
+
+    Flatten(),  # Flatten feature maps to 1D vector
+    Dense(128, activation='relu'),  # Fully connected layer
+    Dropout(0.5),  # Dropout for regularization
+    Dense(train_data.num_classes, activation='softmax')  # Output layer with softmax
+])
+
+model.compile(
+    optimizer='adam',  # Adam optimizer for faster convergence
+    loss='categorical_crossentropy',  # Suitable loss for multi-class classification
+    metrics=['accuracy']
+)
+
+model.summary()
+
+
+history = model.fit(
+    train_data,
+    validation_data=val_data,
+    epochs=10,  # Number of epochs
+    verbose=1  # Display training progress
+)
+
+import matplotlib.pyplot as plt
+
+val_loss, val_accuracy = model.evaluate(val_data)
+print(f"Validation Loss: {val_loss:.4f}")
+print(f"Validation Accuracy: {val_accuracy:.4f}")
+
+def plot_history(history):
+    plt.figure(figsize=(12, 4))
+
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['accuracy'], label='Training Accuracy')
+    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    plt.title('Model Accuracy')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+
+ plt.subplot(1, 2, 2)
+    plt.plot(history.history['loss'], label='Training Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.title('Model Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+
+
+plt.show()
+
+plot_history(history)
